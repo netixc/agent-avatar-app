@@ -12,7 +12,7 @@ import i18n from 'i18next';
 export const IMAGE_COMPRESSION_QUALITY_KEY = 'appImageCompressionQuality';
 export const DEFAULT_IMAGE_COMPRESSION_QUALITY = 0.8;
 export const IMAGE_MAX_WIDTH_KEY = 'appImageMaxWidth';
-export const DEFAULT_IMAGE_MAX_WIDTH = 1080;
+export const DEFAULT_IMAGE_MAX_WIDTH = 0;
 
 interface GeneralSettings {
   language: string[]
@@ -55,7 +55,7 @@ const loadInitialImageMaxWidth = (): number => {
   const storedMaxWidth = localStorage.getItem(IMAGE_MAX_WIDTH_KEY);
   if (storedMaxWidth) {
     const maxWidth = parseInt(storedMaxWidth, 10);
-    if (!Number.isNaN(maxWidth) && maxWidth > 0) {
+    if (!Number.isNaN(maxWidth) && maxWidth >= 0) {
       return maxWidth;
     }
   }
