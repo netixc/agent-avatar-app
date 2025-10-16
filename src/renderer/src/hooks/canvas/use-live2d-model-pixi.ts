@@ -15,6 +15,20 @@ import {
 import { setModelSize, resetModelPosition } from "./use-live2d-resize-pixi";
 import { useMode } from "@/context/mode-context";
 
+// Register Cubism runtimes with PIXI Live2D
+// This makes the globally loaded Live2D libraries available to pixi-live2d-display
+if (typeof window !== 'undefined') {
+  // @ts-ignore - Cubism 2 runtime
+  if (window.Live2D) {
+    // @ts-ignore
+    window.PIXI = PIXI;
+  }
+  // @ts-ignore - Cubism 4 core
+  if (window.Live2DCubismCore) {
+    // Library is loaded globally via script tag
+  }
+}
+
 interface UseLive2DModelProps {
   modelInfo: ModelInfo | undefined;
 }
