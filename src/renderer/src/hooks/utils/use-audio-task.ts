@@ -1,21 +1,12 @@
-/* eslint-disable func-names */
-/* eslint-disable no-underscore-dangle */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAiState } from '@/context/ai-state-context';
 import { useSubtitle } from '@/context/subtitle-context';
 import { useChatHistory } from '@/context/chat-history-context';
 import { audioTaskQueue } from '@/utils/task-queue';
-import { audioManager } from '@/utils/audio-manager';
 import { toaster } from '@/components/ui/toaster';
 import { useWebSocket } from '@/context/websocket-context';
 import { DisplayText } from '@/services/websocket-service';
-import { useLive2DExpression } from '@/hooks/canvas/use-live2d-expression';
-import * as LAppDefine from '../../../WebSDK/src/lappdefine';
-
-// Simple type alias for Live2D model
-type Live2DModel = any;
 
 interface AudioTaskOptions {
   audioBase64: string
@@ -36,7 +27,6 @@ export const useAudioTask = () => {
   const { setSubtitleText } = useSubtitle();
   const { appendResponse, appendAIMessage } = useChatHistory();
   const { sendMessage } = useWebSocket();
-  const { setExpression } = useLive2DExpression();
 
   // State refs to avoid stale closures
   const stateRef = useRef({
@@ -46,21 +36,12 @@ export const useAudioTask = () => {
     appendAIMessage,
   });
 
-  // Note: currentAudioRef and currentModelRef are now managed by the global audioManager
-
   stateRef.current = {
     aiState,
     setSubtitleText,
     appendResponse,
     appendAIMessage,
   };
-
-  /**
-   * Stop current audio playback and lip sync (delegates to global audioManager)
-   */
-  const stopCurrentAudioAndLipSync = useCallback(() => {
-    audioManager.stopCurrentAudioAndLipSync();
-  }, []);
 
   /**
    * Handle audio playback with Live2D lip sync
@@ -98,123 +79,49 @@ export const useAudioTask = () => {
       }
     }
 
+    // Get PIXI Live2D model
+    const model = (window as any).live2dModel;
+    if (!model) {
+      console.error('PIXI Live2D model not found on window.live2dModel');
+      resolve();
+      return;
+    }
+
     try {
-      // Process audio if available
+      // Set expression if available
+      if (expressions?.[0] !== undefined) {
+        console.log(`Setting expression to: ${expressions[0]}`);
+        model.expression(expressions[0]);
+      }
+
+      // Process audio with lipsync if available
+      let isFinished = false;
       if (audioBase64) {
         const audioDataUrl = `data:audio/wav;base64,${audioBase64}`;
 
-        // Get Live2D manager and model
-        const live2dManager = (window as any).getLive2DManager?.();
-        if (!live2dManager) {
-          console.error('Live2D manager not found');
-          resolve();
-          return;
-        }
-
-        const model = live2dManager.getModel(0);
-        if (!model) {
-          console.error('Live2D model not found at index 0');
-          resolve();
-          return;
-        }
-        console.log('Found model for audio playback');
-
-        if (!model._wavFileHandler) {
-          console.warn('Model does not have _wavFileHandler for lip sync');
-        } else {
-          console.log('Model has _wavFileHandler available');
-        }
-
-        // Set expression if available
-        const lappAdapter = (window as any).getLAppAdapter?.();
-        if (lappAdapter && expressions?.[0] !== undefined) {
-          setExpression(
-            expressions[0],
-            lappAdapter,
-            `Set expression to: ${expressions[0]}`,
-          );
-        }
-
-        // Start talk motion
-        if (LAppDefine && LAppDefine.PriorityNormal) {
-          console.log("Starting random 'Talk' motion");
-          model.startRandomMotion(
-            "Talk",
-            LAppDefine.PriorityNormal,
-          );
-        } else {
-          console.warn("LAppDefine.PriorityNormal not found - cannot start talk motion");
-        }
-
-        // Setup audio element
-        const audio = new Audio(audioDataUrl);
-        
-        // Register with global audio manager IMMEDIATELY after creating audio
-        audioManager.setCurrentAudio(audio, model);
-        let isFinished = false;
-
-        const cleanup = () => {
-          audioManager.clearCurrentAudio(audio);
-          if (!isFinished) {
+        console.log('Starting PIXI Live2D speak with lipsync');
+        model.speak(audioDataUrl, {
+          onFinish: () => {
+            console.log("Audio playback completed");
             isFinished = true;
             resolve();
-          }
-        };
-
-        // Enhance lip sync sensitivity
-        const lipSyncScale = 2.0;
-
-        audio.addEventListener('canplaythrough', () => {
-          // Check for interruption before playback
-          if (stateRef.current.aiState === 'interrupted' || !audioManager.hasCurrentAudio()) {
-            console.warn('Audio playback cancelled due to interruption or audio was stopped');
-            cleanup();
-            return;
-          }
-
-          console.log('Starting audio playback with lip sync');
-          audio.play().catch((err) => {
-            console.error("Audio play error:", err);
-            cleanup();
-          });
-
-          // Setup lip sync
-          if (model._wavFileHandler) {
-            if (!model._wavFileHandler._initialized) {
-              console.log('Applying enhanced lip sync');
-              model._wavFileHandler._initialized = true;
-
-              const originalUpdate = model._wavFileHandler.update.bind(model._wavFileHandler);
-              model._wavFileHandler.update = function (deltaTimeSeconds: number) {
-                const result = originalUpdate(deltaTimeSeconds);
-                // @ts-ignore
-                this._lastRms = Math.min(2.0, this._lastRms * lipSyncScale);
-                return result;
-              };
-            }
-
-            if (audioManager.hasCurrentAudio()) {
-              model._wavFileHandler.start(audioDataUrl);
-            } else {
-              console.warn('WavFileHandler start skipped - audio was stopped');
-            }
-          }
+          },
+          onError: (error: any) => {
+            console.error("Audio playback error:", error);
+            isFinished = true;
+            resolve();
+          },
         });
-
-        audio.addEventListener('ended', () => {
-          console.log("Audio playback completed");
-          cleanup();
-        });
-
-        audio.addEventListener('error', (error) => {
-          console.error("Audio playback error:", error);
-          cleanup();
-        });
-
-        audio.load();
       } else {
         resolve();
       }
+
+      const checkFinished = () => {
+        if (!isFinished) {
+          setTimeout(checkFinished, 100);
+        }
+      };
+      checkFinished();
     } catch (error) {
       console.error('Audio playback setup error:', error);
       toaster.create({
@@ -233,7 +140,6 @@ export const useAudioTask = () => {
     const handleComplete = async () => {
       await audioTaskQueue.waitForCompletion();
       if (isMounted && backendSynthComplete) {
-        stopCurrentAudioAndLipSync();
         sendMessage({ type: "frontend-playback-complete" });
         setBackendSynthComplete(false);
       }
@@ -244,7 +150,7 @@ export const useAudioTask = () => {
     return () => {
       isMounted = false;
     };
-  }, [backendSynthComplete, sendMessage, setBackendSynthComplete, stopCurrentAudioAndLipSync]);
+  }, [backendSynthComplete, sendMessage, setBackendSynthComplete]);
 
   /**
    * Add a new audio task to the queue
@@ -264,6 +170,5 @@ export const useAudioTask = () => {
   return {
     addAudioTask,
     appendResponse,
-    stopCurrentAudioAndLipSync,
   };
 };
