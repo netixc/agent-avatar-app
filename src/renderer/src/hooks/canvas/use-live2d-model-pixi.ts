@@ -144,6 +144,16 @@ export const useLive2DModel = ({
     [modelInfo],
   );
 
+  // Store initial offsets in refs to avoid triggering re-positioning
+  const initialXshiftRef = useRef(modelInfo?.initialXshift);
+  const initialYshiftRef = useRef(modelInfo?.initialYshift);
+
+  // Update offset refs when model info changes (only affects future resets, not continuous repositioning)
+  useEffect(() => {
+    initialXshiftRef.current = modelInfo?.initialXshift;
+    initialYshiftRef.current = modelInfo?.initialYshift;
+  }, [modelInfo?.initialXshift, modelInfo?.initialYshift]);
+
   const setupModelSizeAndPosition = useCallback(() => {
     if (!modelRef.current) return;
     setModelSize(modelRef.current, kScaleRef.current);
@@ -155,8 +165,8 @@ export const useLive2DModel = ({
         height: 0,
       };
 
-    resetModelPosition(modelRef.current, width, height, modelInfo?.initialXshift, modelInfo?.initialYshift);
-  }, [isPet, modelInfo?.initialXshift, modelInfo?.initialYshift]);
+    resetModelPosition(modelRef.current, width, height, initialXshiftRef.current, initialYshiftRef.current);
+  }, [isPet]);
 
   // Load Live2D model with configuration
   const loadModel = useCallback(async () => {
@@ -312,9 +322,12 @@ export const useLive2DModel = ({
     kScaleRef.current = modelInfo?.kScale;
   }, [modelInfo?.kScale]);
 
+  // Only setup size and position when model first becomes ready
   useEffect(() => {
-    setupModelSizeAndPosition();
-  }, [isModelReady, setupModelSizeAndPosition]);
+    if (isModelReady) {
+      setupModelSizeAndPosition();
+    }
+  }, [isModelReady]);
 
   useEffect(() => {
     if (modelRef.current && isModelReady) {

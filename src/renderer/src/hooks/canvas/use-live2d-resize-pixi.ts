@@ -104,6 +104,15 @@ export const useLive2DResize = (
   }, [handleWheel, containerRef]);
 
   // Handle container resize
+  const initialXshiftRef = useRef(modelInfo?.initialXshift);
+  const initialYshiftRef = useRef(modelInfo?.initialYshift);
+
+  // Update refs when modelInfo changes
+  useEffect(() => {
+    initialXshiftRef.current = modelInfo?.initialXshift;
+    initialYshiftRef.current = modelInfo?.initialYshift;
+  }, [modelInfo?.initialXshift, modelInfo?.initialYshift]);
+
   useEffect(() => {
     const observer = new ResizeObserver(() => {
       if (modelRef.current && appRef.current) {
@@ -115,10 +124,8 @@ export const useLive2DResize = (
             height: 0,
           };
 
-        // Resize renderer and reset model position
+        // Resize renderer only - don't reset position on every resize
         appRef.current.renderer.resize(width, height);
-        appRef.current.renderer.clear();
-        resetModelPosition(modelRef.current, width, height, modelInfo?.initialXshift, modelInfo?.initialYshift);
       }
     });
 
