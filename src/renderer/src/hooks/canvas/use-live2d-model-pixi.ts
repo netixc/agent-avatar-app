@@ -48,6 +48,7 @@ export const useLive2DModel = ({
   const { setIsLoading } = useLive2DConfig();
   const loadingRef = useRef(false);
   const [isModelReady, setIsModelReady] = useState(false);
+  const hasManuallyPositionedRef = useRef(false); // Track if user has dragged model
   const electronApi = (window as any).electron;
 
   // Cleanup function for Live2D model
@@ -66,6 +67,7 @@ export const useLive2DModel = ({
       }
     }
     setIsModelReady(false);
+    hasManuallyPositionedRef.current = false; // Reset when model is cleaned up
   }, []);
 
   // Cleanup function for PIXI application
@@ -158,14 +160,17 @@ export const useLive2DModel = ({
     if (!modelRef.current) return;
     setModelSize(modelRef.current, kScaleRef.current);
 
-    const { width, height } = isPet
-      ? { width: window.innerWidth, height: window.innerHeight }
-      : containerRef.current?.getBoundingClientRect() || {
-        width: 0,
-        height: 0,
-      };
+    // Only reset position if user hasn't manually positioned the model
+    if (!hasManuallyPositionedRef.current) {
+      const { width, height } = isPet
+        ? { width: window.innerWidth, height: window.innerHeight }
+        : containerRef.current?.getBoundingClientRect() || {
+          width: 0,
+          height: 0,
+        };
 
-    resetModelPosition(modelRef.current, width, height, initialXshiftRef.current, initialYshiftRef.current);
+      resetModelPosition(modelRef.current, width, height, initialXshiftRef.current, initialYshiftRef.current);
+    }
   }, [isPet]);
 
   // Load Live2D model with configuration
@@ -258,6 +263,7 @@ export const useLive2DModel = ({
 
           if (Math.hypot(dx, dy) > dragThreshold) {
             isTap = false;
+            hasManuallyPositionedRef.current = true; // Mark as manually positioned
           }
 
           model.position.x = newX;
