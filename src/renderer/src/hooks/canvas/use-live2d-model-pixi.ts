@@ -48,7 +48,6 @@ export const useLive2DModel = ({
   const { setIsLoading } = useLive2DConfig();
   const loadingRef = useRef(false);
   const [isModelReady, setIsModelReady] = useState(false);
-  const hasManuallyPositionedRef = useRef(false); // Track if user has dragged model
   const electronApi = (window as any).electron;
 
   // Cleanup function for Live2D model
@@ -67,7 +66,6 @@ export const useLive2DModel = ({
       }
     }
     setIsModelReady(false);
-    hasManuallyPositionedRef.current = false; // Reset when model is cleaned up
   }, []);
 
   // Cleanup function for PIXI application
@@ -146,32 +144,19 @@ export const useLive2DModel = ({
     [modelInfo],
   );
 
-  // Store initial offsets in refs to avoid triggering re-positioning
-  const initialXshiftRef = useRef(modelInfo?.initialXshift);
-  const initialYshiftRef = useRef(modelInfo?.initialYshift);
-
-  // Update offset refs when model info changes (only affects future resets, not continuous repositioning)
-  useEffect(() => {
-    initialXshiftRef.current = modelInfo?.initialXshift;
-    initialYshiftRef.current = modelInfo?.initialYshift;
-  }, [modelInfo?.initialXshift, modelInfo?.initialYshift]);
-
   const setupModelSizeAndPosition = useCallback(() => {
     if (!modelRef.current) return;
     setModelSize(modelRef.current, kScaleRef.current);
 
-    // Only reset position if user hasn't manually positioned the model
-    if (!hasManuallyPositionedRef.current) {
-      const { width, height } = isPet
-        ? { width: window.innerWidth, height: window.innerHeight }
-        : containerRef.current?.getBoundingClientRect() || {
-          width: 0,
-          height: 0,
-        };
+    const { width, height } = isPet
+      ? { width: window.innerWidth, height: window.innerHeight }
+      : containerRef.current?.getBoundingClientRect() || {
+        width: 0,
+        height: 0,
+      };
 
-      resetModelPosition(modelRef.current, width, height, initialXshiftRef.current, initialYshiftRef.current);
-    }
-  }, [isPet]);
+    resetModelPosition(modelRef.current, width, height, modelInfo?.initialXshift, modelInfo?.initialYshift);
+  }, [isPet, modelInfo?.initialXshift, modelInfo?.initialYshift]);
 
   // Load Live2D model with configuration
   const loadModel = useCallback(async () => {
@@ -263,7 +248,6 @@ export const useLive2DModel = ({
 
           if (Math.hypot(dx, dy) > dragThreshold) {
             isTap = false;
-            hasManuallyPositionedRef.current = true; // Mark as manually positioned
           }
 
           model.position.x = newX;
@@ -328,12 +312,9 @@ export const useLive2DModel = ({
     kScaleRef.current = modelInfo?.kScale;
   }, [modelInfo?.kScale]);
 
-  // Only setup size and position when model first becomes ready
   useEffect(() => {
-    if (isModelReady) {
-      setupModelSizeAndPosition();
-    }
-  }, [isModelReady]);
+    setupModelSizeAndPosition();
+  }, [isModelReady, setupModelSizeAndPosition]);
 
   useEffect(() => {
     if (modelRef.current && isModelReady) {

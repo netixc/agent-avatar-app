@@ -126,6 +126,11 @@ export function Live2DConfigProvider({ children }: { children: React.ReactNode }
       return;
     }
 
+    // Prevent unnecessary updates if model info hasn't changed
+    if (JSON.stringify(info) === JSON.stringify(modelInfo)) {
+      return;
+    }
+
     // Use the scale as-is from config (don't multiply by 2)
     const finalScale = Number(info.kScale || 0.5);
     console.log("Setting model info with default scale:", finalScale);
