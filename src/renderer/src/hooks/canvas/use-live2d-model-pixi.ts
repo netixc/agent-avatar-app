@@ -306,7 +306,8 @@ export const useLive2DModel = ({
     return () => {
       cleanupModel();
     };
-  }, [modelInfo?.url, modelInfo?.pointerInteractive, loadModel, cleanupModel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelInfo?.url, modelInfo?.pointerInteractive]);
 
   useEffect(() => {
     kScaleRef.current = modelInfo?.kScale;
