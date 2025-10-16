@@ -127,7 +127,13 @@ export function Live2DConfigProvider({ children }: { children: React.ReactNode }
     }
 
     // Prevent unnecessary updates if model info hasn't changed
-    if (JSON.stringify(info) === JSON.stringify(modelInfo)) {
+    const currentStr = JSON.stringify(modelInfo);
+    const newStr = JSON.stringify(info);
+    console.log("setModelInfo called - URLs match?", modelInfo?.url === info?.url);
+    console.log("setModelInfo called - JSON match?", currentStr === newStr);
+
+    if (currentStr === newStr) {
+      console.log("Skipping update - modelInfo hasn't changed");
       return;
     }
 
