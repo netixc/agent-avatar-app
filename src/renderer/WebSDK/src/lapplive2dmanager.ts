@@ -192,14 +192,16 @@ export class LAppLive2DManager {
     // Use the directory name and file name from our configuration
     const model: string = LAppDefine.ModelDir[index];
     const modelPath: string = LAppDefine.ResourcesPath + model + '/';
-    
-    // Use ModelFileNames if available, otherwise fall back to ModelDir
-    let modelJsonName: string = LAppDefine.ModelFileNames && 
-                                LAppDefine.ModelFileNames[index] ? 
-                                LAppDefine.ModelFileNames[index] : 
-                                LAppDefine.ModelDir[index];
-                                
-    modelJsonName += '.model3.json';
+
+    // Use ModelFileNames if available, otherwise fall back to ModelDir with .model3.json extension
+    let modelJsonName: string;
+    if (LAppDefine.ModelFileNames && LAppDefine.ModelFileNames[index]) {
+      // Backend now sends complete filename, don't append .model3.json
+      modelJsonName = LAppDefine.ModelFileNames[index];
+    } else {
+      // Fallback: use directory name and add .model3.json extension
+      modelJsonName = LAppDefine.ModelDir[index] + '.model3.json';
+    }
 
     if (LAppDefine.DebugLogEnable) {
       LAppPal.printMessage(`[APP]model path: ${modelPath}${modelJsonName}`);

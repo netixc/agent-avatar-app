@@ -80,6 +80,7 @@ export interface ModelInfo {
 interface Live2DConfigState {
   modelInfo?: ModelInfo;
   setModelInfo: (info: ModelInfo | undefined) => void;
+  updateModelScale: (scale: number) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
 }
@@ -143,10 +144,20 @@ export function Live2DConfigProvider({ children }: { children: React.ReactNode }
     });
   };
 
+  const updateModelScale = (scale: number) => {
+    if (modelInfo) {
+      setModelInfoState({
+        ...modelInfo,
+        kScale: scale,
+      });
+    }
+  };
+
   const contextValue = useMemo(
     () => ({
       modelInfo,
       setModelInfo,
+      updateModelScale,
       isLoading,
       setIsLoading,
     }),
